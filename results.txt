@@ -11,3 +11,6 @@ Sogou   0.40521
 Bing    0.39751
 Google  0.38824
 Yandex  0.38748
+
+
+---These results are from January 2018 and denote the average BLEU scores obtained by each translation service in the tests done at that time---
