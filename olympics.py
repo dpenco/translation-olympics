@@ -1,6 +1,7 @@
 '''
 Author: David Penco
 Date: 2018-05-24
+TODO: change yandex's time.sleep to a proper selenium wait
 '''
 
 from selenium import webdriver
