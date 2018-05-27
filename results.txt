@@ -1,16 +1,155 @@
-English to Chinese:
-Baidu   0.44306
-Bing    0.42563
-Yandex  0.42218
-Sogou   0.41707
-Google  0.38777
+Statistics for google:
 
-Chinese to English:
-Baidu   0.43788
-Sogou   0.40521
-Bing    0.39751
-Google  0.38824
-Yandex  0.38748
+Variance:
+0.0026791996055050673
+Interquartile Range:
+0.06613717112884332
+
+0th percentile:
+0.5081327481546147
+10th percentile:
+0.614066962724565
+20th percentile:
+0.6389431042462724
+30th percentile:
+0.6638183601040394
+40th percentile:
+0.6759542613470766
+50th percentile:
+0.6865890479690392
+60th percentile:
+0.7053922660808399
+70th percentile:
+0.7116450103274754
+80th percentile:
+0.7311104457090247
+90th percentile:
+0.7406162061474917
+100th percentile:
+0.7730551756939454
 
 
----These results are from January 2018 and denote the average BLEU scores obtained by each translation service in the tests done at that time---
+Statistics for sogou:
+
+Variance:
+0.0024118974882572264
+Interquartile Range:
+0.05391657616918333
+
+0th percentile:
+0.5623413251903491
+10th percentile:
+0.6344105315352023
+20th percentile:
+0.6575254106613799
+30th percentile:
+0.668740304976422
+40th percentile:
+0.6744322250214191
+50th percentile:
+0.6844861471686758
+60th percentile:
+0.7018092857682547
+70th percentile:
+0.712486651440058
+80th percentile:
+0.7311104457090247
+90th percentile:
+0.7598356856515927
+100th percentile:
+0.7952707287670506
+
+
+Statistics for yandex:
+
+Variance:
+0.00394095297793187
+Interquartile Range:
+0.06364789702578588
+
+0th percentile:
+0.2996709045159163
+10th percentile:
+0.6147881529512643
+20th percentile:
+0.6389431042462724
+30th percentile:
+0.6496252289838664
+40th percentile:
+0.668740304976422
+50th percentile:
+0.6773709971213142
+60th percentile:
+0.6887905800180188
+70th percentile:
+0.7025650215738779
+80th percentile:
+0.7123839632097293
+90th percentile:
+0.7400828044922853
+100th percentile:
+0.8091067115702212
+
+
+Statistics for bing:
+
+Variance:
+0.0025884172431943136
+Interquartile Range:
+0.0586739393329504
+
+0th percentile:
+0.5430321466633391
+10th percentile:
+0.6147881529512643
+20th percentile:
+0.645777692487244
+30th percentile:
+0.6606328636027614
+40th percentile:
+0.6810781866404342
+50th percentile:
+0.6930977286178778
+60th percentile:
+0.7071067811865476
+70th percentile:
+0.7098006566272721
+80th percentile:
+0.7216770011459306
+90th percentile:
+0.7462497069138276
+100th percentile:
+0.8265168183793802
+
+
+Statistics for baidu:
+
+Variance:
+0.0027012826398386445
+Interquartile Range:
+0.07947991611245131
+
+0th percentile:
+0.5623413251903491
+10th percentile:
+0.6133664385237653
+20th percentile:
+0.6389431042462724
+30th percentile:
+0.6517323647866111
+40th percentile:
+0.668740304976422
+50th percentile:
+0.6828267746069693
+60th percentile:
+0.6927664967510787
+70th percentile:
+0.7071067811865476
+80th percentile:
+0.7248864522007405
+90th percentile:
+0.7451019730892645
+100th percentile:
+0.8091067115702212
+
+

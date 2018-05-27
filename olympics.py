@@ -1,7 +1,7 @@
 '''
 Author: David Penco
 Date: 2018-05-24
-TODO: change yandex's time.sleep to a proper selenium wait
+TODO: add selenium wait instead of time.sleep in yandex
 '''
 
 from selenium import webdriver
@@ -122,9 +122,11 @@ def openWebsites(tabCounter, fromEnglish=True):
 
 def engToChiWorkflow(tabCounter):
     openWebsites(tabCounter, fromEnglish=True)
+    numberOfSentences = 0
     with open('newEnglish.txt', 'r') as englishInput:
         for sentence in englishInput:
             if sentence != '':
+                numberOfSentences += 1
                 for tab in tabOrder:
                     driver.switch_to.window(driver.window_handles[tab])
                     enterInput(tabOrder[tab], sentence)
@@ -138,12 +140,15 @@ def engToChiWorkflow(tabCounter):
             chineseOutput.write('%s\n' % site)
             for sentence in output[site]:
                 chineseOutput.write('%s\n' % sentence)
+    return numberOfSentences
 
 def chiToEngWorkflow(tabCounter):
     openWebsites(tabCounter, fromEnglish=False)
-    with open('newChinese.txt', 'r') as chineseInput:
+    numberOfSentences = 0
+    with open('newChineseDesegmented.txt', 'r') as chineseInput:
         for sentence in chineseInput:
             if sentence != '':
+                numberOfSentences += 1
                 for tab in tabOrder:
                     driver.switch_to.window(driver.window_handles[tab])
                     enterInput(tabOrder[tab], sentence)
@@ -152,10 +157,11 @@ def chiToEngWorkflow(tabCounter):
                     driver.switch_to.window(driver.window_handles[tab])
                     output[tabOrder[tab]].append(getOutput(tabOrder[tab]))
     driver.quit()
-    with open('newEnglishOutput.txt', 'w') as englishOutput:
+    with open('newEnglishOutputFromChiDeseg.txt', 'w') as englishOutput:
         for site in output:
             englishOutput.write('%s\n' % site)
             for sentence in output[site]:
                 englishOutput.write('%s\n' % sentence)
+    return numberOfSentences
 
 chiToEngWorkflow(tabCounter)
