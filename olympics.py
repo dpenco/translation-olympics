@@ -16,7 +16,7 @@ chrome_options.add_experimental_option('prefs', \
 {'intl.accept_languages': 'en-US'})
 driver = webdriver.Chrome(chrome_options=chrome_options)
 
-courtesyDelay = 5
+courtesyDelay = 8
 
 sites = {'baidu': 'https://fanyi.baidu.com/', \
 'bing': 'https://www.bing.com/translator', \
@@ -32,7 +32,6 @@ for site in sites:
     output[site] = []
 
 tabOrder = {}
-tabCounter = 0
 
 def engToChi(site):
     if site == 'baidu':
@@ -164,4 +163,5 @@ def chiToEngWorkflow(tabCounter):
                 englishOutput.write('%s\n' % sentence)
     return numberOfSentences
 
-chiToEngWorkflow(tabCounter)
+engToChiWorkflow(tabCounter=0)
+chiToEngWorkflow(tabCounter=0)
