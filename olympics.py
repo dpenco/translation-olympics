@@ -2,6 +2,7 @@
 Author: David Penco
 Date: 2018-05-24
 TODO: add selenium wait instead of time.sleep in yandex
+TODO: mod the code so it can handle different language pairs, not just Chi-Eng
 '''
 
 from selenium import webdriver
@@ -18,6 +19,19 @@ Chrome Webdriver, based on Selenium
 '''
 class ChromeDriver:
     def __init__(self):
+        print('Constructing a new ChromeDriver...')
+        self.chineseInput = input('Please enter the name of the file \
+        containing the Chinese sentences. Ensure that each sentence is on a \
+        separate line in the file:')
+        self.englishInput = input('Please enter the name of the file \
+        containing the English sentences. Ensure that each sentence is on a \
+        separate line in the file:')
+        self.chineseOutput = input('Please enter the name of the file where \
+        you want to write the Chinese output (which comes from the English \
+        input):')
+        self.englishOutput = input('Please enter the name of the file where \
+        you want to write the English output (which comes from the Chinese \
+        input):')
         chrome_options = Options()
         chrome_options.add_argument('--disable-infobars')
         chrome_options.add_experimental_option('prefs', \
@@ -25,7 +39,6 @@ class ChromeDriver:
         self.driver = webdriver.Chrome(chrome_options=chrome_options)
         self.courtesyDelay = 8
         self.dictionary = WebsiteDictionaries()
-        setupChiToEng(self)
 
     def setupChiToEng(self):
         tabNumber = 0
@@ -101,6 +114,15 @@ class ChromeDriver:
                 tabNumber += 1
         self.driver.switch_to.window(self.driver.window_handles[0])
 
+    def workflow(self):
+        setupChiToEng(self)
+        sentenceCount = 0
+        with open(self.chineseInput, 'r') as input:
+            for sentence in input:
+                if sentence != '':
+                    sentenceCount += 1
+                    #TODO: continue coding here next time
+
 '''
 Dictionaries used to make the code body more modular and easier to edit
 @Param url: maps website names to their url
@@ -131,16 +153,16 @@ def enterInput(site, sentence):
     driver.find_element_by_id(inputBox[site]).send_keys(sentence)
 
 def getOutput(site):
-    if site == 'baidu':
+    if site.capitalize() == 'Baidu':
         return driver.find_element_by_class_name('target-output').text
-    elif site == 'bing':
+    elif site.capitalize() == 'Bing':
         driver.find_element_by_id('t_copyIcon').click()
         return pyperclip.paste()
-    elif site == 'google':
+    elif site.capitalize() == 'Google':
         return driver.find_element_by_id('result_box').text
-    elif site == 'sogou':
+    elif site.capitalize() == 'Sogou':
         return driver.find_element_by_id('sogou-translate-output').text
-    elif site == 'yandex':
+    elif site.capitalize() == 'Yandex':
         return driver.find_element_by_id('translation').text
     else:
         return ''
