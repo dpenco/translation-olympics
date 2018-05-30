@@ -3,6 +3,10 @@ Author: David Penco
 Date: 2018-05-24
 TODO: add selenium wait instead of time.sleep in yandex
 TODO: mod the code so it can handle different language pairs, not just Chi-Eng
+TODO: this script currently does not do pre-processing (to desegment the
+Chinese), post-processing (to make formatting and proper nouns consistent) or
+jieba segmentation, BLEU calculation or statistical analysis. Those parts of
+the project are still in other files, at least for now
 '''
 
 from selenium import webdriver
@@ -20,18 +24,18 @@ Chrome Webdriver, based on Selenium
 class ChromeDriver:
     def __init__(self):
         print('Constructing a new ChromeDriver...')
-        self.chineseInput = input('Please enter the name of the file \
-        containing the Chinese sentences. Ensure that each sentence is on a \
-        separate line in the file:')
-        self.englishInput = input('Please enter the name of the file \
-        containing the English sentences. Ensure that each sentence is on a \
-        separate line in the file:')
-        self.chineseOutput = input('Please enter the name of the file where \
-        you want to write the Chinese output (which comes from the English \
-        input):')
-        self.englishOutput = input('Please enter the name of the file where \
-        you want to write the English output (which comes from the Chinese \
-        input):')
+        self.chineseInput = input('\nPlease enter the name of the file ' +
+        'containing the Chinese sentences. Ensure that each sentence is on a ' +
+        'separate line in the file:\n')
+        self.englishInput = input('\nPlease enter the name of the file ' +
+        'containing the English sentences. Ensure that each sentence is on a ' +
+        'separate line in the file:\n')
+        self.chineseOutput = input('\nPlease enter the name of the file where' +
+        ' you want to write the Chinese output (which comes from the English ' +
+        'input):\n')
+        self.englishOutput = input('\nPlease enter the name of the file where' +
+        ' you want to write the English output (which comes from the Chinese ' +
+        'input):\n')
         chrome_options = Options()
         chrome_options.add_argument('--disable-infobars')
         chrome_options.add_experimental_option('prefs', \
@@ -39,6 +43,7 @@ class ChromeDriver:
         self.driver = webdriver.Chrome(chrome_options=chrome_options)
         self.courtesyDelay = 8
         self.dictionary = WebsiteDictionaries()
+        self.workflow()
 
     def setupChiToEng(self):
         tabNumber = 0
@@ -114,14 +119,64 @@ class ChromeDriver:
                 tabNumber += 1
         self.driver.switch_to.window(self.driver.window_handles[0])
 
+    '''
+    Note: this method currently trusts and relies on the user to provide two files
+    with the same number of lines in each
+    '''
     def workflow(self):
-        setupChiToEng(self)
+        self.setupChiToEng()
         sentenceCount = 0
-        with open(self.chineseInput, 'r') as input:
-            for sentence in input:
+        with open(self.chineseInput, 'r') as inFile:
+            for sentence in inFile:
                 if sentence != '':
                     sentenceCount += 1
-                    #TODO: continue coding here next time
+                    print(sentenceCount)
+                    for tab in self.dictionary.tabOrder:
+                        self.driver.switch_to.window(self.driver.window_handles[tab])
+                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
+                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
+                    time.sleep(self.courtesyDelay)
+                    for tab in self.dictionary.tabOrder:
+                        self.driver.switch_to.window(self.driver.window_handles[tab])
+                        self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
+        with open(self.englishOutput, 'w') as outFile:
+            for site in self.dictionary.output:
+                outFile.write('%s\n' % site)
+                for sentence in self.dictionary.output[site]:
+                    outFile.write('%s\n' % sentence)
+        setupEngToChi(self)
+        with open(self.englishInput, 'r') as inFile:
+            for sentence in inFile:
+                if sentence != '':
+                    for tab in self.dictionary.tabOrder:
+                        self.driver.switch_to.window(self.driver.window_handles[tab])
+                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
+                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
+                    time.sleep(courtesyDelay)
+                    for tab in self.dictionary.tabOrder:
+                        self.driver.switch_to.window(self.driver.window_handles[tab])
+                        self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
+        self.driver.quit()
+        with open(self.chineseOutput, 'w') as outFile:
+            for site in self.dictionary.output:
+                outFile.write('%s\n' % site)
+                for sentence in self.dictionary.output[site]:
+                    outFile.write('%s\n' % sentence)
+
+    def getOutput(self, site):
+        if site.capitalize() == 'Baidu':
+            return self.driver.find_element_by_class_name('target-output').text
+        elif site.capitalize() == 'Bing':
+            self.driver.find_element_by_id('t_copyIcon').click()
+            return pyperclip.paste()
+        elif site.capitalize() == 'Google':
+            return self.driver.find_element_by_id('result_box').text
+        elif site.capitalize() == 'Sogou':
+            return self.driver.find_element_by_id('sogou-translate-output').text
+        elif site.capitalize() == 'Yandex':
+            return self.driver.find_element_by_id('translation').text
+        else:
+            return ''
 
 '''
 Dictionaries used to make the code body more modular and easier to edit
@@ -148,68 +203,7 @@ class WebsiteDictionaries:
 
         self.tabOrder = {}
 
-def enterInput(site, sentence):
-    driver.find_element_by_id(inputBox[site]).clear()
-    driver.find_element_by_id(inputBox[site]).send_keys(sentence)
+def main():
+    ChromeDriver()
 
-def getOutput(site):
-    if site.capitalize() == 'Baidu':
-        return driver.find_element_by_class_name('target-output').text
-    elif site.capitalize() == 'Bing':
-        driver.find_element_by_id('t_copyIcon').click()
-        return pyperclip.paste()
-    elif site.capitalize() == 'Google':
-        return driver.find_element_by_id('result_box').text
-    elif site.capitalize() == 'Sogou':
-        return driver.find_element_by_id('sogou-translate-output').text
-    elif site.capitalize() == 'Yandex':
-        return driver.find_element_by_id('translation').text
-    else:
-        return ''
-
-def engToChiWorkflow(tabCounter):
-    openWebsites(tabCounter, fromEnglish=True)
-    numberOfSentences = 0
-    with open('newEnglish.txt', 'r') as englishInput:
-        for sentence in englishInput:
-            if sentence != '':
-                numberOfSentences += 1
-                for tab in tabOrder:
-                    driver.switch_to.window(driver.window_handles[tab])
-                    enterInput(tabOrder[tab], sentence)
-                time.sleep(courtesyDelay)
-                for tab in tabOrder:
-                    driver.switch_to.window(driver.window_handles[tab])
-                    output[tabOrder[tab]].append(getOutput(tabOrder[tab]))
-    driver.quit()
-    with open('newChineseOutput.txt', 'w') as chineseOutput:
-        for site in output:
-            chineseOutput.write('%s\n' % site)
-            for sentence in output[site]:
-                chineseOutput.write('%s\n' % sentence)
-    return numberOfSentences
-
-def chiToEngWorkflow(tabCounter):
-    openWebsites(tabCounter, fromEnglish=False)
-    numberOfSentences = 0
-    with open('newChineseDesegmented.txt', 'r') as chineseInput:
-        for sentence in chineseInput:
-            if sentence != '':
-                numberOfSentences += 1
-                for tab in tabOrder:
-                    driver.switch_to.window(driver.window_handles[tab])
-                    enterInput(tabOrder[tab], sentence)
-                time.sleep(courtesyDelay)
-                for tab in tabOrder:
-                    driver.switch_to.window(driver.window_handles[tab])
-                    output[tabOrder[tab]].append(getOutput(tabOrder[tab]))
-    driver.quit()
-    with open('newEnglishOutputFromChiDeseg.txt', 'w') as englishOutput:
-        for site in output:
-            englishOutput.write('%s\n' % site)
-            for sentence in output[site]:
-                englishOutput.write('%s\n' % sentence)
-    return numberOfSentences
-
-engToChiWorkflow(tabCounter=0)
-chiToEngWorkflow(tabCounter=0)
+if __name__ == "__main__": main()
