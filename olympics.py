@@ -14,6 +14,8 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select
 import pyperclip
 import time
+import fileinput
+import jieba
 
 '''
 Chrome Webdriver, based on Selenium
@@ -130,7 +132,7 @@ class ChromeDriver:
             for sentence in inFile:
                 if sentence != '':
                     sentenceCount += 1
-                    print(sentenceCount)
+                    sentence = sentence.replace(' ', '').replace('.', '. ').replace(',', ', ')
                     for tab in self.dictionary.tabOrder:
                         self.driver.switch_to.window(self.driver.window_handles[tab])
                         self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
@@ -144,7 +146,8 @@ class ChromeDriver:
                 outFile.write('%s\n' % site)
                 for sentence in self.dictionary.output[site]:
                     outFile.write('%s\n' % sentence)
-        setupEngToChi(self)
+
+        self.setupEngToChi()
         with open(self.englishInput, 'r') as inFile:
             for sentence in inFile:
                 if sentence != '':
@@ -152,7 +155,7 @@ class ChromeDriver:
                         self.driver.switch_to.window(self.driver.window_handles[tab])
                         self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
                         self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
-                    time.sleep(courtesyDelay)
+                    time.sleep(self.courtesyDelay)
                     for tab in self.dictionary.tabOrder:
                         self.driver.switch_to.window(self.driver.window_handles[tab])
                         self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
@@ -162,6 +165,8 @@ class ChromeDriver:
                 outFile.write('%s\n' % site)
                 for sentence in self.dictionary.output[site]:
                     outFile.write('%s\n' % sentence)
+        self.postProcess(self.chineseOutput)
+        self.postProcess(self.chineseInput)
 
     def getOutput(self, site):
         if site.capitalize() == 'Baidu':
@@ -177,6 +182,18 @@ class ChromeDriver:
             return self.driver.find_element_by_id('translation').text
         else:
             return ''
+
+    def postProcess(self, file):
+        with fileinput.FileInput(file, inplace=True) as unprocessed:
+            for sentence in unprocessed:
+                for properNoun in self.dictionary.properNouns:
+                    sentence = sentence.replace(properNoun, self.dictionary.properNouns[properNoun])
+                for properNoun in self.dictionary.moreProperNouns:
+                    sentence = sentence.replace(properNoun, self.dictionary.moreProperNouns[properNoun])
+                for char in self.dictionary.punctuation:
+                    sentence = sentence.replace(char, self.dictionary.punctuation[char])
+                sentence = ' '.join(jieba.cut(sentence))
+                print(sentence, end='')
 
 '''
 Dictionaries used to make the code body more modular and easier to edit
@@ -202,6 +219,23 @@ class WebsiteDictionaries:
             self.output[site] = []
 
         self.tabOrder = {}
+
+        self.properNouns = {'Peter Gregg': '彼得·格雷格', 'Syed Amjad Ali': \
+        '赛义德·阿姆贾德·阿里', 'Henrik Amneus': '亨里克·安纽斯', \
+        '国际货币基金组织': '货币基金组织', '160条': '一六○条', '（IMF）': '', \
+        'GDP': '国内总产值', '国内生产总值': '国内总产值', 'MER': '市场汇率', 'PARES': \
+        '价格调整汇率', 'PARE率': '价格调整汇率', 'PAREs': \
+        '价格调整汇率', 'PPP': '购买力平价', 'WAs': '世界地图集', \
+        '和（或）': '和/或', '亨利. Amneus ': '亨里克·安纽斯'}
+
+        self.moreProperNouns = {'Amneus': '安纽斯', 'IMF': '货币基金组织', 'PARE': \
+        '价格调整汇率', 'WA': '世界地图集'}
+
+        self.punctuation = {' ': '', '》': '', '《': '', '.': '。', ',': '，', \
+        u'\ufeff': '', '(': '（', ')': '）', '1985和1990': '1985年和1990年', '6000美元': \
+        '$6000', '（4）': '', ':': '：', ';': '；', '*': '·', '6 000美元': '$6000', \
+        '[4]/': '', '1994 的': '1994年的', '一九八九至九四年': '1989-1994年', '1994的': \
+        '1994年的'}
 
 def main():
     ChromeDriver()
