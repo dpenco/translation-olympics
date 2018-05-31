@@ -3,49 +3,94 @@ Author: David Penco
 Date: 2018-05-24
 TODO: add selenium wait instead of time.sleep in yandex
 TODO: mod the code so it can handle different language pairs, not just Chi-Eng
-TODO: this script currently does not do pre-processing (to desegment the
-Chinese), post-processing (to make formatting and proper nouns consistent) or
-jieba segmentation, BLEU calculation or statistical analysis. Those parts of
-the project are still in other files, at least for now
+TODO: this script currently does not do  BLEU calculation or statistical
+analysis. Those parts of the project are still in other files, at least for now
 '''
+
+import time
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import Select
 import pyperclip
-import time
 import fileinput
 import jieba
+import nltk
+import matplotlib.pyplot as plt
+import numpy as np
+import scipy
 
-'''
-Chrome Webdriver, based on Selenium
-@Param driver: the Selenium webdriver object
-@Param courtesyDelay: time delay, in seconds, to respect terms of service
-@Param dictionaries: all the dictionaries used to drive the webscraping
-'''
+
+class WebsiteDictionaries:
+    def __init__(self):
+        self.url = {'Baidu': 'https://fanyi.baidu.com/', \
+        'Bing': 'https://www.bing.com/translator', \
+        'Google': 'https://translate.google.com/', \
+        'Sogou': 'https://fanyi.sogou.com', \
+        'Yandex': 'https://translate.yandex.com/'}
+
+        self.inputBox = {'Baidu': 'baidu_translate_input', 'Bing': 't_sv', \
+        'Google': 'source', 'Sogou': 'sogou-translate-input', 'Yandex': \
+        'fakeArea'}
+
+        self.output = {}
+        for site in self.url:
+            self.output[site] = []
+
+        self.tabOrder = {}
+
+        self.properNouns = {'Peter Gregg': '彼得·格雷格', 'Syed Amjad Ali': \
+        '赛义德·阿姆贾德·阿里', 'Henrik Amneus': '亨里克·安纽斯', \
+        '国际货币基金组织': '货币基金组织', '160条': '一六○条', '（IMF）': '', \
+        'GDP': '国内总产值', '国内生产总值': '国内总产值', 'MER': '市场汇率', 'PARES': \
+        '价格调整汇率', 'PARE率': '价格调整汇率', 'PAREs': \
+        '价格调整汇率', 'PPP': '购买力平价', 'WAs': '世界地图集', \
+        '和（或）': '和/或', '亨利. Amneus ': '亨里克·安纽斯'}
+
+        self.moreProperNouns = {'Amneus': '安纽斯', 'IMF': '货币基金组织', 'PARE': \
+        '价格调整汇率', 'WA': '世界地图集'}
+
+        self.punctuation = {' ': '', '》': '', '《': '', '.': '。', ',': '，', \
+        u'\ufeff': '', '(': '（', ')': '）', '1985和1990': '1985年和1990年', '6000美元': \
+        '$6000', '（4）': '', ':': '：', ';': '；', '*': '·', '6 000美元': '$6000', \
+        '[4]/': '', '1994 的': '1994年的', '一九八九至九四年': '1989-1994年', '1994的': \
+        '1994年的'}
+
 class ChromeDriver:
     def __init__(self):
-        print('Constructing a new ChromeDriver...')
-        self.chineseInput = input('\nPlease enter the name of the file ' +
-        'containing the Chinese sentences. Ensure that each sentence is on a ' +
-        'separate line in the file:\n')
-        self.englishInput = input('\nPlease enter the name of the file ' +
-        'containing the English sentences. Ensure that each sentence is on a ' +
-        'separate line in the file:\n')
-        self.chineseOutput = input('\nPlease enter the name of the file where' +
-        ' you want to write the Chinese output (which comes from the English ' +
-        'input):\n')
-        self.englishOutput = input('\nPlease enter the name of the file where' +
-        ' you want to write the English output (which comes from the Chinese ' +
-        'input):\n')
-        chrome_options = Options()
-        chrome_options.add_argument('--disable-infobars')
-        chrome_options.add_experimental_option('prefs', \
-        {'intl.accept_languages': 'en-US'})
-        self.driver = webdriver.Chrome(chrome_options=chrome_options)
-        self.courtesyDelay = 8
+        self.scrapeEng = input('\nWould you like to input Chinese sentences' + \
+        'to the translation websites and scrape their translations into ' + \
+        'English? (Y/N)\n\n').upper() == 'Y'
+        self.scrapeChi = input('\nWould you like to input English sentences' + \
+        'to the translation websites and scrape their translations into ' + \
+        'Chinese? (Y/N)\n\n').upper() == 'Y'
+
+        if self.scrapeEng:
+            self.chineseInput = input('\n\nPlease enter the name of the file ' +
+            'containing the Chinese sentences to translate into English. Ensure' + \
+            ' that each sentence is on a separate line in the file:\n')
+            self.englishOutput = input('\n\nPlease enter the name of the file where' +
+            ' you want to write the English translation output (which comes from' + \
+            ' the Chinese sentence input):\n\n')
+
+        if self.scrapeChi:
+            self.englishInput = input('\n\nPlease enter the name of the file ' +
+            'containing the English sentences to translate into Chinese. Ensure' + \
+            ' that each sentence is on a separate line in the file:\n')
+            self.chineseOutput = input('\n\nPlease enter the name of the file where' +
+            ' you want to write the Chinese translation output (which comes from' + \
+            ' the English sentence input):\n\n')
+
+        if self.scrapeEng or self.scrapeChi:
+            chrome_options = Options()
+            chrome_options.add_argument('--disable-infobars')
+            chrome_options.add_experimental_option('prefs', \
+            {'intl.accept_languages': 'en-US'})
+            self.driver = webdriver.Chrome(chrome_options=chrome_options)
+            self.courtesyDelay = 8
+
         self.dictionary = WebsiteDictionaries()
-        self.workflow()
+        self.scrapeData()
 
     def setupChiToEng(self):
         tabNumber = 0
@@ -121,52 +166,47 @@ class ChromeDriver:
                 tabNumber += 1
         self.driver.switch_to.window(self.driver.window_handles[0])
 
-    '''
-    Note: this method currently trusts and relies on the user to provide two files
-    with the same number of lines in each
-    '''
-    def workflow(self):
-        self.setupChiToEng()
-        sentenceCount = 0
-        with open(self.chineseInput, 'r') as inFile:
-            for sentence in inFile:
-                if sentence != '':
-                    sentenceCount += 1
-                    sentence = sentence.replace(' ', '').replace('.', '. ').replace(',', ', ')
-                    for tab in self.dictionary.tabOrder:
-                        self.driver.switch_to.window(self.driver.window_handles[tab])
-                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
-                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
-                    time.sleep(self.courtesyDelay)
-                    for tab in self.dictionary.tabOrder:
-                        self.driver.switch_to.window(self.driver.window_handles[tab])
-                        self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
-        with open(self.englishOutput, 'w') as outFile:
-            for site in self.dictionary.output:
-                outFile.write('%s\n' % site)
-                for sentence in self.dictionary.output[site]:
-                    outFile.write('%s\n' % sentence)
+    def scrapeData(self):
+        if self.scrapeEng:
+            self.setupChiToEng()
+            with open(self.chineseInput, 'r') as inFile:
+                for sentence in inFile:
+                    if sentence != '':
+                        sentence = sentence.replace(' ', '').replace('.', '. ').replace(',', ', ')
+                        for tab in self.dictionary.tabOrder:
+                            self.driver.switch_to.window(self.driver.window_handles[tab])
+                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
+                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
+                        time.sleep(self.courtesyDelay)
+                        for tab in self.dictionary.tabOrder:
+                            self.driver.switch_to.window(self.driver.window_handles[tab])
+                            self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
+            with open(self.englishOutput, 'w') as outFile:
+                for site in self.dictionary.output:
+                    outFile.write('%s\n' % site)
+                    for sentence in self.dictionary.output[site]:
+                        outFile.write('%s\n' % sentence)
 
-        self.setupEngToChi()
-        with open(self.englishInput, 'r') as inFile:
-            for sentence in inFile:
-                if sentence != '':
-                    for tab in self.dictionary.tabOrder:
-                        self.driver.switch_to.window(self.driver.window_handles[tab])
-                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
-                        self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
-                    time.sleep(self.courtesyDelay)
-                    for tab in self.dictionary.tabOrder:
-                        self.driver.switch_to.window(self.driver.window_handles[tab])
-                        self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
-        self.driver.quit()
-        with open(self.chineseOutput, 'w') as outFile:
-            for site in self.dictionary.output:
-                outFile.write('%s\n' % site)
-                for sentence in self.dictionary.output[site]:
-                    outFile.write('%s\n' % sentence)
-        self.postProcess(self.chineseOutput)
-        self.postProcess(self.chineseInput)
+        if self.scrapeChi:
+            self.setupEngToChi()
+            with open(self.englishInput, 'r') as inFile:
+                for sentence in inFile:
+                    if sentence != '':
+                        for tab in self.dictionary.tabOrder:
+                            self.driver.switch_to.window(self.driver.window_handles[tab])
+                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
+                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
+                        time.sleep(self.courtesyDelay)
+                        for tab in self.dictionary.tabOrder:
+                            self.driver.switch_to.window(self.driver.window_handles[tab])
+                            self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
+            with open(self.chineseOutput, 'w') as outFile:
+                for site in self.dictionary.output:
+                    outFile.write('%s\n' % site)
+                    for sentence in self.dictionary.output[site]:
+                        outFile.write('%s\n' % sentence)
+        if self.scrapeEng or self.scrapeChi:
+            self.driver.quit()
 
     def getOutput(self, site):
         if site.capitalize() == 'Baidu':
@@ -183,61 +223,23 @@ class ChromeDriver:
         else:
             return ''
 
-    def postProcess(self, file):
-        with fileinput.FileInput(file, inplace=True) as unprocessed:
-            for sentence in unprocessed:
-                for properNoun in self.dictionary.properNouns:
-                    sentence = sentence.replace(properNoun, self.dictionary.properNouns[properNoun])
-                for properNoun in self.dictionary.moreProperNouns:
-                    sentence = sentence.replace(properNoun, self.dictionary.moreProperNouns[properNoun])
-                for char in self.dictionary.punctuation:
-                    sentence = sentence.replace(char, self.dictionary.punctuation[char])
-                sentence = ' '.join(jieba.cut(sentence))
-                print(sentence, end='')
-
-'''
-Dictionaries used to make the code body more modular and easier to edit
-@Param url: maps website names to their url
-@Param inputBox: maps website names to the id of their translation input box
-@Param output: maps website names to their translation output
-@Param tabOrder: maps webdriver tab indices to site names
-'''
-class WebsiteDictionaries:
-    def __init__(self):
-        self.url = {'Baidu': 'https://fanyi.baidu.com/', \
-        'Bing': 'https://www.bing.com/translator', \
-        'Google': 'https://translate.google.com/', \
-        'Sogou': 'https://fanyi.sogou.com', \
-        'Yandex': 'https://translate.yandex.com/'}
-
-        self.inputBox = {'Baidu': 'baidu_translate_input', 'Bing': 't_sv', \
-        'Google': 'source', 'Sogou': 'sogou-translate-input', 'Yandex': \
-        'fakeArea'}
-
-        self.output = {}
-        for site in self.url:
-            self.output[site] = []
-
-        self.tabOrder = {}
-
-        self.properNouns = {'Peter Gregg': '彼得·格雷格', 'Syed Amjad Ali': \
-        '赛义德·阿姆贾德·阿里', 'Henrik Amneus': '亨里克·安纽斯', \
-        '国际货币基金组织': '货币基金组织', '160条': '一六○条', '（IMF）': '', \
-        'GDP': '国内总产值', '国内生产总值': '国内总产值', 'MER': '市场汇率', 'PARES': \
-        '价格调整汇率', 'PARE率': '价格调整汇率', 'PAREs': \
-        '价格调整汇率', 'PPP': '购买力平价', 'WAs': '世界地图集', \
-        '和（或）': '和/或', '亨利. Amneus ': '亨里克·安纽斯'}
-
-        self.moreProperNouns = {'Amneus': '安纽斯', 'IMF': '货币基金组织', 'PARE': \
-        '价格调整汇率', 'WA': '世界地图集'}
-
-        self.punctuation = {' ': '', '》': '', '《': '', '.': '。', ',': '，', \
-        u'\ufeff': '', '(': '（', ')': '）', '1985和1990': '1985年和1990年', '6000美元': \
-        '$6000', '（4）': '', ':': '：', ';': '；', '*': '·', '6 000美元': '$6000', \
-        '[4]/': '', '1994 的': '1994年的', '一九八九至九四年': '1989-1994年', '1994的': \
-        '1994年的'}
+def postProcess(driver, file):
+    with fileinput.FileInput(file, inplace=True) as unprocessed:
+        for sentence in unprocessed:
+            for properNoun in driver.dictionary.properNouns:
+                sentence = sentence.replace(properNoun, driver.dictionary.properNouns[properNoun])
+            for properNoun in driver.dictionary.moreProperNouns:
+                sentence = sentence.replace(properNoun, driver.dictionary.moreProperNouns[properNoun])
+            for char in driver.dictionary.punctuation:
+                sentence = sentence.replace(char, driver.dictionary.punctuation[char])
+            sentence = ' '.join(jieba.cut(sentence))
+            print(sentence, end='')
 
 def main():
-    ChromeDriver()
+    driver = ChromeDriver()
+    if driver.scrapeEng:
+        postProcess(driver, driver.chineseInput)
+    if driver.scrapeChi:
+        postProcess(driver, driver.chineseOutput)
 
 if __name__ == "__main__": main()
