@@ -56,6 +56,10 @@ class WebsiteDictionaries:
         '[4]/': '', '1994 的': '1994年的', '一九八九至九四年': '1989-1994年', '1994的': \
         '1994年的'}
 
+        self.bleuScores = {}
+        for site in self.url:
+            self.bleuScores[site] = 0
+
 class ChromeDriver:
     def __init__(self):
         self.scrapeEng = input('\nWould you like to input Chinese sentences' + \
@@ -81,6 +85,16 @@ class ChromeDriver:
             ' you want to write the Chinese translation output (which comes from' + \
             ' the English sentence input):\n\n')
 
+        if not self.scrapeEng:
+            self.chineseInput = input('\n\nPlease enter the name of the file ' +
+            'containing the Chinese reference sentences for analysis. Ensure' + \
+            ' that each sentence is on a separate line in the file:\n')
+
+        if not self.scrapeChi:
+            self.englishInput = input('\n\nPlease enter the name of the file ' +
+            'containing the English reference sentences for analysis. Ensure' + \
+            ' that each sentence is on a separate line in the file:\n')
+
         if self.scrapeEng or self.scrapeChi:
             chrome_options = Options()
             chrome_options.add_argument('--disable-infobars')
@@ -89,14 +103,14 @@ class ChromeDriver:
             self.driver = webdriver.Chrome(chrome_options=chrome_options)
             self.courtesyDelay = 8
 
-        self.dictionary = WebsiteDictionaries()
-        self.scrapeData()
+        dictionaries = WebsiteDictionaries()
+        self.scrapeData(dictionaries)
 
-    def setupChiToEng(self):
+    def setupChiToEng(self, dictionaries):
         tabNumber = 0
         self.driver.switch_to.window(self.driver.window_handles[0])
-        for site in self.dictionary.url:
-            self.driver.get(self.dictionary.url[site])
+        for site in dictionaries.url:
+            self.driver.get(dictionaries.url[site])
             if site.capitalize() == 'Baidu':
                 self.driver.find_element_by_class_name('select-from-language').click()
                 self.driver.find_element_by_xpath('//a[@value="zh"]').click()
@@ -122,18 +136,18 @@ class ChromeDriver:
                 self.driver.find_element_by_id('srcLangButton').click()
                 time.sleep(0.5)
                 self.driver.find_element_by_xpath('(//div[@data-value="zh"])').click()
-            self.dictionary.tabOrder[tabNumber] = site
-            if len(self.driver.window_handles) < len(self.dictionary.url):
+            dictionaries.tabOrder[tabNumber] = site
+            if len(self.driver.window_handles) < len(dictionaries.url):
                 self.driver.execute_script('window.open(\'about:blank\');')
                 self.driver.switch_to.window(self.driver.window_handles[-1])
                 tabNumber += 1
         self.driver.switch_to.window(self.driver.window_handles[0])
 
-    def setupEngToChi(self):
+    def setupEngToChi(self, dictionaries):
         tabNumber = 0
         self.driver.switch_to.window(self.driver.window_handles[0])
-        for site in self.dictionary.url:
-            self.driver.get(self.dictionary.url[site])
+        for site in dictionaries.url:
+            self.driver.get(dictionaries.url[site])
             if site.capitalize() == 'Baidu':
                 self.driver.find_element_by_class_name('select-from-language').click()
                 self.driver.find_element_by_xpath('//a[@value="en"]').click()
@@ -159,51 +173,51 @@ class ChromeDriver:
                 self.driver.find_element_by_id('srcLangButton').click()
                 time.sleep(0.5)
                 self.driver.find_element_by_xpath('(//div[@data-value="en"])').click()
-            self.dictionary.tabOrder[tabNumber] = site
-            if len(self.driver.window_handles) < len(self.dictionary.url):
+            dictionaries.tabOrder[tabNumber] = site
+            if len(self.driver.window_handles) < len(dictionaries.url):
                 self.driver.execute_script('window.open(\'about:blank\');')
                 self.driver.switch_to.window(self.driver.window_handles[-1])
                 tabNumber += 1
         self.driver.switch_to.window(self.driver.window_handles[0])
 
-    def scrapeData(self):
+    def scrapeData(self, dictionaries):
         if self.scrapeEng:
-            self.setupChiToEng()
+            self.setupChiToEng(dictionaries)
             with open(self.chineseInput, 'r') as inFile:
                 for sentence in inFile:
                     if sentence != '':
                         sentence = sentence.replace(' ', '').replace('.', '. ').replace(',', ', ')
-                        for tab in self.dictionary.tabOrder:
+                        for tab in dictionaries.tabOrder:
                             self.driver.switch_to.window(self.driver.window_handles[tab])
-                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
-                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
+                            self.driver.find_element_by_id(dictionaries.inputBox[dictionaries.tabOrder[tab]]).clear()
+                            self.driver.find_element_by_id(dictionaries.inputBox[dictionaries.tabOrder[tab]]).send_keys(sentence)
                         time.sleep(self.courtesyDelay)
-                        for tab in self.dictionary.tabOrder:
+                        for tab in dictionaries.tabOrder:
                             self.driver.switch_to.window(self.driver.window_handles[tab])
-                            self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
+                            dictionaries.output[dictionaries.tabOrder[tab]].append(self.getOutput(dictionaries.tabOrder[tab]))
             with open(self.englishOutput, 'w') as outFile:
-                for site in self.dictionary.output:
+                for site in dictionaries.output:
                     outFile.write('%s\n' % site)
-                    for sentence in self.dictionary.output[site]:
+                    for sentence in dictionaries.output[site]:
                         outFile.write('%s\n' % sentence)
 
         if self.scrapeChi:
-            self.setupEngToChi()
+            self.setupEngToChi(dictionaries)
             with open(self.englishInput, 'r') as inFile:
                 for sentence in inFile:
                     if sentence != '':
-                        for tab in self.dictionary.tabOrder:
+                        for tab in dictionaries.tabOrder:
                             self.driver.switch_to.window(self.driver.window_handles[tab])
-                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).clear()
-                            self.driver.find_element_by_id(self.dictionary.inputBox[self.dictionary.tabOrder[tab]]).send_keys(sentence)
+                            self.driver.find_element_by_id(dictionaries.inputBox[dictionaries.tabOrder[tab]]).clear()
+                            self.driver.find_element_by_id(dictionaries.inputBox[dictionaries.tabOrder[tab]]).send_keys(sentence)
                         time.sleep(self.courtesyDelay)
-                        for tab in self.dictionary.tabOrder:
+                        for tab in dictionaries.tabOrder:
                             self.driver.switch_to.window(self.driver.window_handles[tab])
-                            self.dictionary.output[self.dictionary.tabOrder[tab]].append(self.getOutput(self.dictionary.tabOrder[tab]))
+                            dictionaries.output[dictionaries.tabOrder[tab]].append(self.getOutput(dictionaries.tabOrder[tab]))
             with open(self.chineseOutput, 'w') as outFile:
-                for site in self.dictionary.output:
+                for site in dictionaries.output:
                     outFile.write('%s\n' % site)
-                    for sentence in self.dictionary.output[site]:
+                    for sentence in dictionaries.output[site]:
                         outFile.write('%s\n' % sentence)
         if self.scrapeEng or self.scrapeChi:
             self.driver.quit()
@@ -223,17 +237,57 @@ class ChromeDriver:
         else:
             return ''
 
-def postProcess(driver, file):
+def postProcess(dictionaries, file):
     with fileinput.FileInput(file, inplace=True) as unprocessed:
         for sentence in unprocessed:
-            for properNoun in driver.dictionary.properNouns:
-                sentence = sentence.replace(properNoun, driver.dictionary.properNouns[properNoun])
-            for properNoun in driver.dictionary.moreProperNouns:
-                sentence = sentence.replace(properNoun, driver.dictionary.moreProperNouns[properNoun])
-            for char in driver.dictionary.punctuation:
-                sentence = sentence.replace(char, driver.dictionary.punctuation[char])
+            for properNoun in dictionaries.properNouns:
+                sentence = sentence.replace(properNoun, dictionaries.properNouns[properNoun])
+            for properNoun in dictionaries.moreProperNouns:
+                sentence = sentence.replace(properNoun, dictionaries.moreProperNouns[properNoun])
+            for char in dictionaries.punctuation:
+                sentence = sentence.replace(char, dictionaries.punctuation[char])
             sentence = ' '.join(jieba.cut(sentence))
             print(sentence, end='')
+
+def bleu(dictionaries, refFile, candFile):
+    references = []
+
+    with open(refFile, 'r') as reference:
+        sentenceIndex = 0
+        for sentence in reference:
+            references[sentenceIndex] = sentence.replace(u'\ufeff', '').split()
+            sentenceIndex += 1
+
+    with open(candFile, 'r') as candidate:
+        for sentence in candidate:
+            processedSentence = sentence.replace(u'\ufeff', '').split()
+            if not processedSentence or not processedSentence[0]:
+                continue
+            if processedSentence[0] in sites:
+                site = processedSentence[0]
+                sentenceIndex = 0
+                continue
+            sites[site][sentenceIndex] = nltk.translate.bleu_score.sentence_bleu(references[sentenceIndex], processedSentence)
+            sentenceIndex += 1
+    dataMatrix = np.array([[sites[site], site] for site in sites])
+    legend = [dataMatrix[siteIndex][1] for siteIndex in range(len(sites))]
+    with open('results.txt', 'w') as file:
+        for siteIndex in range(len(sites)):
+            file.write('Statistics for %s:\n\n' % legend[siteIndex])
+            file.write('Variance:\n')
+            file.write(repr(np.var([dataMatrix[siteIndex][0]])))
+            file.write('\nInterquartile Range:\n')
+            file.write(repr(scipy.stats.iqr([dataMatrix[siteIndex][0]])))
+            file.write('\n')
+            for percent in range(0, 110, 10):
+                file.write('\n%sth percentile: ' % percent)
+                file.write(repr(np.percentile([dataMatrix[siteIndex][0]], percent)))
+            file.write('\n\n\n')
+            plt.hist([dataMatrix[siteIndex][0]], 20)
+            plt.show()
+    plt.boxplot(np.transpose([dataMatrix[siteIndex][0] for siteIndex in range(len(sites))]))
+    plt.show()
+
 
 def main():
     driver = ChromeDriver()
